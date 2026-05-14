@@ -13,9 +13,7 @@ import {
   Phone,
   Mail,
   Activity,
-  ClipboardList,
-  Trash2,
-  Loader2
+  ClipboardList
 } from 'lucide-react';
 import { collection, query, onSnapshot, orderBy, where, limit, addDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
@@ -33,13 +31,9 @@ const Records: React.FC = () => {
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [isRecording, setIsRecording] = useState(false);
-  const [isProcessingAI, setIsProcessingAI] = useState(false);
   const [newContent, setNewContent] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
-  
-  const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
-  const audioChunksRef = React.useRef<Blob[]>([]);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -112,77 +106,12 @@ const Records: React.FC = () => {
   }, [clinic, selectedPatient]);
 
   const handleTranscribe = async () => {
-    if (isRecording) {
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-        mediaRecorderRef.current.stop();
-      }
+    setIsRecording(true);
+    // Mocking AI Transcription call
+    setTimeout(() => {
+      setNewContent(prev => prev + (prev ? "\n\n" : "") + "O paciente apresenta melhora no quadro clínico. Recomenda-se continuidade do tratamento e retorno em 15 dias para nova avaliação de rotina.");
       setIsRecording(false);
-      return;
-    }
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
-      };
-
-      mediaRecorder.onstop = () => {
-        setIsProcessingAI(true);
-        const audioBlob = new Blob(audioChunksRef.current, { type: mediaRecorder.mimeType });
-        
-        const reader = new FileReader();
-        reader.readAsDataURL(audioBlob);
-        reader.onloadend = async () => {
-          const base64data = reader.result?.toString().split(',')[1];
-          if (!base64data) {
-            setIsProcessingAI(false);
-            return;
-          }
-
-          try {
-            const response = await fetch('/api/ai/transcribe', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                audioBase64: base64data,
-                mimeType: mediaRecorder.mimeType,
-                context: "Evolução do paciente " + (selectedPatient?.name || "Desconhecido")
-              })
-            });
-
-            if (!response.ok) throw new Error("Erro na API");
-            
-            const data = await response.json();
-            if (data.text) {
-              setNewContent(prev => prev + (prev ? "\n\n" : "") + data.text);
-            }
-          } catch (error) {
-            console.error('Erro na transcrição', error);
-            alert('Falha ao processar a transcrição de áudio.');
-          } finally {
-            setIsProcessingAI(false);
-          }
-        };
-      };
-
-      mediaRecorder.start();
-      setIsRecording(true);
-    } catch (err) {
-      console.error('Error accessing microphone', err);
-      alert('Não foi possível acessar o microfone.');
-    }
-  };
-
-  const handleClearTranscription = () => {
-    if (window.confirm("Deseja apagar o texto atual?")) {
-      setNewContent('');
-    }
+    }, 2000);
   };
 
   const handleSaveRecord = async () => {
@@ -302,31 +231,16 @@ const Records: React.FC = () => {
                 <div className="flex items-center justify-between mb-6">
                   <span className="text-xs font-bold uppercase tracking-widest text-slate-400">Nova entrada no prontuário</span>
                   <div className="flex gap-2">
-                    {newContent.length > 0 && (
-                      <button 
-                        onClick={handleClearTranscription}
-                        className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-bold text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all"
-                        title="Limpar texto"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
                     <button 
                       onClick={handleTranscribe}
-                      disabled={isProcessingAI}
+                      disabled={isRecording}
                       className={cn(
-                        "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all min-w-[140px] justify-center",
-                        isRecording ? "bg-red-50 text-red-500 animate-pulse" : 
-                        isProcessingAI ? "bg-amber-50 text-amber-500 cursor-not-allowed" : "bg-clinora-soft text-clinora-green hover:bg-clinora-soft/80"
+                        "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all",
+                        isRecording ? "bg-red-50 text-red-500 animate-pulse" : "bg-clinora-soft text-clinora-green hover:bg-clinora-soft/80"
                       )}
                     >
-                      {isProcessingAI ? (
-                        <><Loader2 className="w-4 h-4 animate-spin" /> Processando...</>
-                      ) : isRecording ? (
-                        <><Mic className="w-4 h-4" /> Parar Gravação</>
-                      ) : (
-                        <><Mic className="w-4 h-4" /> Ditado por IA</>
-                      )}
+                      <Mic className="w-4 h-4" />
+                      {isRecording ? "Ouvindo..." : "Ditado por IA"}
                     </button>
                   </div>
                 </div>

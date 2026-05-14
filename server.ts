@@ -18,7 +18,7 @@ async function startServer() {
   // API Routes
   app.post("/api/ai/transcribe", async (req, res) => {
     try {
-      const { audioBase64, context, mimeType } = req.body;
+      const { audioBase64, context } = req.body;
       if (!audioBase64) return res.status(400).json({ error: "Missing audio data" });
 
       const prompt = `Transcreva este áudio médico/clínico. O contexto é: ${context || 'atendimento geral'}. Transforme em um texto estruturado para prontuário se possível.`;
@@ -27,7 +27,7 @@ async function startServer() {
         prompt,
         {
           inlineData: {
-            mimeType: mimeType || "audio/wav", // Adjusted dynamically
+            mimeType: "audio/wav", // Adjusted as needed
             data: audioBase64
           }
         }
