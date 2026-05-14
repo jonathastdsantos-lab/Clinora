@@ -13,7 +13,8 @@ import {
   ChevronRight,
   Calendar,
   AlertCircle,
-  FileText
+  FileText,
+  CheckCircle
 } from 'lucide-react';
 import { collection, query, onSnapshot, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
@@ -52,6 +53,12 @@ const Financial: React.FC = () => {
     status: 'received' as 'received' | 'pending',
   });
   const [submitting, setSubmitting] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,8 +79,10 @@ const Financial: React.FC = () => {
         category: '',
         status: 'received',
       });
+      showNotification('Transação salva com sucesso!');
     } catch (error: any) {
       handleFirestoreError(error, OperationType.WRITE, `clinics/${clinic.id}/transactions`);
+      showNotification('Erro ao salvar transação.', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -701,6 +710,36 @@ const Financial: React.FC = () => {
               </div>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100]"
+          >
+            <div className={cn(
+              "flex items-center gap-4 px-8 py-4 rounded-[32px] shadow-2xl border backdrop-blur-md",
+              toast.type === 'success' 
+                ? "bg-clinora-night/95 border-white/10 text-white" 
+                : "bg-rose-500/95 border-rose-400/20 text-white"
+            )}>
+              {toast.type === 'success' ? (
+                <div className="w-8 h-8 bg-clinora-green rounded-xl flex items-center justify-center">
+                  <CheckCircle className="w-5 h-5 text-white" />
+                </div>
+              ) : (
+                <div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center">
+                  <AlertCircle className="w-5 h-5 text-white" />
+                </div>
+              )}
+              <span className="font-black text-sm uppercase tracking-widest">{toast.message}</span>
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
