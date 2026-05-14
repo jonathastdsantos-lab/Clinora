@@ -3,63 +3,35 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // --- GLOBAL SAFETY NET ---
-    match /{document=**} {
-      allow read, write: if false;
-    }
-
     // --- BASIC HELPERS ---
     
     function isSignedIn() {
       return request.auth != null;
     }
 
-    function isDev() {
+    function isSuperAdmin() {
       return isSignedIn() && (
         request.auth.uid == 'zr3xo1dZ3Ghqy8e7OnbnTPumM0i1' ||
-        request.auth.token.get('email', '').lower() == 'jonathastdsantos@gmail.com' ||
-        request.auth.token.get('email', '').lower() == 'jonathas.tdsantos@gmail.com'
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isSuperAdmin', false) == true)
       );
     }
 
-    function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
-    }
-
-    function incoming() {
-      return request.resource.data;
-    }
-
-    function existing() {
-      return resource.data;
-    }
-
-    // --- ROLE HELPERS ---
-    
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-    }
-
-    function isSuperAdmin() {
-      return isDev() || (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getUserData().get('isSuperAdmin', false) == true);
-    }
-
     function isClinicAdmin(clinicId) {
-      let user = getUserData();
       return isSuperAdmin() || (
         isSignedIn() && 
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        user.clinicId == clinicId && 
-        (user.get('role', '') == 'admin' || user.get('role', '') == 'super-admin')
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.clinicId == clinicId && 
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') in ['admin', 'super-admin'] ||
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isSuperAdmin', false) == true)
       );
     }
 
     function isClinicMember(clinicId) {
-      let user = getUserData();
       return isSuperAdmin() || (
         isSignedIn() && 
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        user.clinicId == clinicId
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.clinicId == clinicId
       );
     }
 
@@ -107,53 +79,52 @@ service cloud.firestore {
     // --- MATCH BLOCKS ---
 
     match /users/{userId} {
-      allow get: if isSignedIn() && (request.auth.uid == userId || isSuperAdmin());
-      allow list: if isSuperAdmin();
-      allow create: if isSignedIn() && request.auth.uid == userId && isValidUser(incoming());
-      allow update: if isSignedIn() && (request.auth.uid == userId || isSuperAdmin()) 
-                   && (isSuperAdmin() || incoming().diff(existing()).affectedKeys().hasOnly(['name', 'email', 'companyCode']));
+      allow read: if isSignedIn() && (request.auth.uid == userId || isSuperAdmin());
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow update: if isSignedIn() && (request.auth.uid == userId || isSuperAdmin());
     }
 
     match /clinics/{clinicId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn(); // Allow discovery
-      allow create: if isSignedIn() && isValidClinic(incoming());
-      allow update: if isClinicAdmin(clinicId) && isValidClinic(incoming())
-                   && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'specialty']);
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidClinic(request.resource.data);
+      allow update: if isClinicAdmin(clinicId) && isValidClinic(request.resource.data);
 
-      // SUBCOLLECTIONS
-      
       match /patients/{patientId} {
-        allow get, list: if isClinicMember(clinicId);
-        allow create: if isClinicMember(clinicId) && isValidPatient(incoming());
-        allow update: if isClinicMember(clinicId) && isValidPatient(incoming());
+        allow read: if isClinicMember(clinicId);
+        allow create: if isClinicMember(clinicId) && isValidPatient(request.resource.data);
+        allow update: if isClinicMember(clinicId) && isValidPatient(request.resource.data);
         allow delete: if isClinicAdmin(clinicId);
       }
 
       match /appointments/{appointmentId} {
-        allow get, list: if isClinicMember(clinicId);
-        allow create: if isClinicMember(clinicId) && isValidAppointment(incoming());
-        allow update: if isClinicMember(clinicId) && isValidAppointment(incoming());
+        allow read: if isClinicMember(clinicId);
+        allow create: if isClinicMember(clinicId) && isValidAppointment(request.resource.data);
+        allow update: if isClinicMember(clinicId) && isValidAppointment(request.resource.data);
         allow delete: if isClinicAdmin(clinicId);
       }
 
       match /healthRecords/{recordId} {
-        allow get, list: if isClinicMember(clinicId);
+        allow read: if isClinicMember(clinicId);
         allow create: if isClinicMember(clinicId);
         allow update: if isClinicAdmin(clinicId);
       }
 
       match /transactions/{transactionId} {
-        allow get, list: if isClinicMember(clinicId);
-        allow create: if isClinicMember(clinicId) && isValidTransaction(incoming());
-        allow update: if isClinicAdmin(clinicId) && isValidTransaction(incoming());
+        allow read: if isClinicMember(clinicId);
+        allow create: if isClinicMember(clinicId) && isValidTransaction(request.resource.data);
+        allow update: if isClinicAdmin(clinicId) && isValidTransaction(request.resource.data);
         allow delete: if isClinicAdmin(clinicId);
       }
 
       match /professionals/{professionalId} {
-        allow get, list: if isClinicMember(clinicId);
+        allow read: if isClinicMember(clinicId);
         allow create, update: if isClinicAdmin(clinicId);
       }
+    }
+
+    // --- GLOBAL SAFETY NET ---
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
