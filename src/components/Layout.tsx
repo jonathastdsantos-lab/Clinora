@@ -86,7 +86,7 @@ const Layout: React.FC<Props> = ({ children, activeTab, setActiveTab }) => {
           />
           <NavItem 
             icon={DollarSign} 
-            label="Financeiro" 
+            label="Painel Financeiro" 
             active={activeTab === 'financial'} 
             onClick={() => setActiveTab('financial')} 
           />
