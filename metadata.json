@@ -1,0 +1,6 @@
+{
+  "name": "Clinora",
+  "description": "Plataforma inteligente de gestão clínica e agendamentos com foco em experiência superior para médicos e pacientes.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

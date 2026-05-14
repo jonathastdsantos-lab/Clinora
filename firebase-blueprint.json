@@ -1,0 +1,131 @@
+{
+  "entities": {
+    "Clinic": {
+      "title": "Clinic",
+      "description": "A clinic or medical office (tenant)",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "companyCode": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "specialty": { "enum": ["dentist", "medical", "aesthetic", "general"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "companyCode", "ownerId", "specialty"]
+    },
+    "Patient": {
+      "title": "Patient",
+      "description": "Patient record",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "cpf": { "type": "string" },
+        "birthDate": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name"]
+    },
+    "Appointment": {
+      "title": "Appointment",
+      "description": "Scheduled appointment",
+      "type": "object",
+      "properties": {
+        "patientId": { "type": "string" },
+        "professionalId": { "type": "string" },
+        "startTime": { "type": "string", "format": "date-time" },
+        "endTime": { "type": "string", "format": "date-time" },
+        "status": { "enum": ["scheduled", "confirmed", "completed", "cancelled", "no-show"] },
+        "procedure": { "type": "string" },
+        "notes": { "type": "string" }
+      },
+      "required": ["patientId", "professionalId", "startTime", "endTime"]
+    },
+    "HealthRecord": {
+      "title": "Health Record",
+      "description": "EHR entry/evolution",
+      "type": "object",
+      "properties": {
+        "patientId": { "type": "string" },
+        "professionalId": { "type": "string" },
+        "content": { "type": "string" },
+        "type": { "enum": ["consultation", "evolution", "exam", "protocol"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "assets": { "type": "array"}
+      },
+      "required": ["patientId", "content", "type"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Financial entry",
+      "type": "object",
+      "properties": {
+        "type": { "enum": ["income", "expense"] },
+        "amount": { "type": "number" },
+        "description": { "type": "string" },
+        "category": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "status": { "enum": ["pending", "received", "cancelled"] }
+      },
+      "required": ["type", "amount", "date", "status"]
+    },
+    "Professional": {
+      "title": "Professional",
+      "description": "Doctor or clinic staff",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "specialty": { "type": "string" },
+        "registration": { "type": "string" },
+        "email": { "type": "string" }
+      },
+      "required": ["name", "role"]
+    },
+    "User": {
+      "title": "User",
+      "description": "App user mapping",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "clinicId": { "type": "string" },
+        "companyCode": { "type": "string" },
+        "role": { "enum": ["admin", "professional", "receptionist", "super-admin"] },
+        "isSuperAdmin": { "type": "boolean" },
+        "name": { "type": "string" }
+      },
+      "required": ["email", "clinicId", "companyCode", "role"]
+    }
+  },
+  "firestore": {
+    "/clinics/{clinicId}": {
+      "schema": "Clinic",
+      "description": "Main clinic document"
+    },
+    "/clinics/{clinicId}/patients/{patientId}": {
+      "schema": "Patient",
+      "description": "Patients of a clinic"
+    },
+    "/clinics/{clinicId}/appointments/{appointmentId}": {
+      "schema": "Appointment",
+      "description": "Appointments of a clinic"
+    },
+    "/clinics/{clinicId}/healthRecords/{recordId}": {
+      "schema": "HealthRecord",
+      "description": "Medical records"
+    },
+    "/clinics/{clinicId}/transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Financial transactions"
+    },
+    "/clinics/{clinicId}/professionals/{professionalId}": {
+      "schema": "Professional",
+      "description": "Staff members"
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile and clinic mapping"
+    }
+  }
+}
